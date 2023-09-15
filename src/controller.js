@@ -131,11 +131,11 @@ async function getPayload(data) {
 
   let message = `A ${pairs.comname} (${pairs.sciname}) was just detected with a confidence of ${confidence}%`
   if (recordingUrl) {
-    message = +'\n\nListen: ' + recordingUrl
+    message = `${message}\n\nListen: ${recordingUrl}`
   }
 
   if (pairs.flickrimage) {
-    message = +'\n\n' + pairs.flickrimage
+    message = `${message}\n\n${pairs.flickrimage}`
   }
 
   return JSON.stringify({
