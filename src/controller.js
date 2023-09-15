@@ -101,7 +101,10 @@ async function getPayload(data) {
     }
   }
 
-  let message = `A ${pairs.comname} (${pairs.sciname}) was just detected with a confidence of ${data.confidencepct}%`
+  const confidence =
+    pairs.confidencepct || parseFloat(pairs.confidence).toFixed(2)
+
+  let message = `A ${pairs.comname} (${pairs.sciname}) was just detected with a confidence of ${confidence}%`
   if (pairs.flickrimage) {
     message = +'\n\n' + pairs.flickrimage
   }
