@@ -1,3 +1,4 @@
+// @ts-check
 /* eslint-disable camelcase */
 const {fetch} = require('undici')
 const {signalApiUrl, fromNumber, recipients} = require('./config')

@@ -1,3 +1,4 @@
+// @ts-check
 module.exports = {
   // URL for the Dockerized Signal Messenger REST API
   // See https://github.com/bbernhard/signal-cli-rest-api

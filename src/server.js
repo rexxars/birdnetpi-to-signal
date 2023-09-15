@@ -1,3 +1,4 @@
+// @ts-check
 /* eslint-disable no-console */
 const {app} = require('./index')
 const {httpPort} = require('./config')

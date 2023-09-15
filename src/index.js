@@ -1,3 +1,4 @@
+// @ts-check
 const os = require('os')
 const express = require('express')
 const bodyParser = require('body-parser')
