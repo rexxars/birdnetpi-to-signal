@@ -26,17 +26,23 @@ exports.notificationController = async (req, res) => {
     }
 
     const payload = await getPayload(data)
-    console.info(
-      'Sending message to Signal API (%s kB)',
-      Math.round(payload.length / 1024),
-    )
+    const size =
+      payload.length > 1024
+        ? `${Math.round(payload.length / 1024)} kB`
+        : `${payload.length} bytes`
+    console.info('Sending message to Signal API (%s)', size)
 
-    await fetch(uri, {
+    const start = Date.now()
+    const response = await fetch(uri, {
       method: 'POST',
       body: payload,
     })
+    console.info('Message sent - spent %d ms', Date.now() - start)
 
-    if (!returnEarly) {
+    if (!response.ok && !returnEarly) {
+      const resBody = await response.text()
+      res.json({success: false, error: resBody})
+    } else if (!returnEarly) {
       res.json({success: true})
     }
   } catch (err) {
@@ -94,7 +100,7 @@ function validateData(data) {
 
 async function getPayload(data) {
   const attachments = []
-  if (data.attachments.length > 0) {
+  if (data.attachments && data.attachments.length > 0) {
     const img = data.attachments[0]
     attachments.push(
       img.base64.startsWith('data:')
