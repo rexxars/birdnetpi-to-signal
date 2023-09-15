@@ -9,6 +9,8 @@ module.exports = {
   httpPort: parseInt(process.env.HTTP_PORT || '3000', 10),
   returnEarly: parseBool(process.env.RETURN_EARLY),
   attachRecording: parseBool(process.env.ATTACH_RECORDING),
+  slackWebhookUrl: process.env.SLACK_WEBHOOK_URL,
+  unsplashApiKey: process.env.UNSPLASH_API_KEY,
 }
 
 function parseBool(envVar) {

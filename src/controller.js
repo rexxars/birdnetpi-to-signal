@@ -1,12 +1,15 @@
 // @ts-check
 /* eslint-disable no-console */
 const {fetch} = require('undici')
+const {createApi} = require('unsplash-js')
 const {
-  signalApiUrl,
+  attachRecording,
   fromNumber,
   recipients,
   returnEarly,
-  attachRecording,
+  signalApiUrl,
+  slackWebhookUrl,
+  unsplashApiKey,
 } = require('./config')
 
 class ValidationError extends Error {
@@ -15,6 +18,13 @@ class ValidationError extends Error {
     this.isValidationError = true
   }
 }
+
+const unsplash =
+  unsplashApiKey &&
+  createApi({
+    accessKey: 'Br0dtxPao9dzcFTM41A4ByF7m_g9Nt-m8fRw5vNrv7g',
+    fetch,
+  })
 
 exports.notificationController = async (req, res) => {
   try {
@@ -25,7 +35,7 @@ exports.notificationController = async (req, res) => {
       res.status(201).json({success: null})
     }
 
-    const payload = await getPayload(data)
+    const payload = await getSignalPayload(data)
     const size =
       payload.length > 1024
         ? `${Math.round(payload.length / 1024)} kB`
@@ -38,6 +48,8 @@ exports.notificationController = async (req, res) => {
       body: payload,
     })
     console.info('Message sent - spent %d ms', Date.now() - start)
+
+    trySendSlackWebhookMessage(parseMessage(data.message))
 
     if (!response.ok && !returnEarly) {
       const resBody = await response.text()
@@ -98,7 +110,7 @@ function validateData(data) {
   return data
 }
 
-async function getPayload(data) {
+async function getSignalPayload(data) {
   const attachments = []
   if (data.attachments && data.attachments.length > 0) {
     const img = data.attachments[0]
@@ -109,16 +121,11 @@ async function getPayload(data) {
     )
   }
 
-  const pairs = data.message.split(' --- ').reduce((acc, pair) => {
-    const [key, ...values] = pair.split('=')
-    acc[key] = values.join('=')
-    return acc
-  }, {})
+  const pairs = parseMessage(data.message)
+  const recording = await tryGetRecording(pairs.listenurl, pairs.date)
 
   let recordingUrl
   if (pairs.listenurl) {
-    const recording = await tryGetRecording(pairs.listenurl, pairs.date)
-
     if (recording && recording.type === 'embed') {
       recordingUrl = recording.url
     } else if (recording && recording.type === 'attach') {
@@ -147,7 +154,7 @@ async function getPayload(data) {
   })
 }
 
-async function tryGetRecording(listenUrl, date) {
+function getRecordingUrl(listenUrl, date) {
   try {
     const url = new URL(listenUrl)
     const filename = url.searchParams.get('filename')
@@ -156,7 +163,18 @@ async function tryGetRecording(listenUrl, date) {
     }
 
     const [folder] = filename.split(/-\d+-/)
-    const recordingUrl = `${url.origin}/By_Date/${date}/${folder}/${filename}`
+    return `${url.origin}/By_Date/${date}/${folder}/${filename}`
+  } catch (err) {
+    return undefined
+  }
+}
+
+async function tryGetRecording(listenUrl, date) {
+  try {
+    const recordingUrl = getRecordingUrl(listenUrl, date)
+    if (!recordingUrl) {
+      return undefined
+    }
 
     if (!attachRecording) {
       return {type: 'embed', url: recordingUrl}
@@ -167,10 +185,99 @@ async function tryGetRecording(listenUrl, date) {
       .then((res) => res.arrayBuffer())
       .then((buffer) => Buffer.from(buffer).toString('base64'))
 
-    return {type: 'attach', data: `data:audio/mpeg;base64,${recording}`}
+    return {
+      type: 'attach',
+      data: `data:audio/mpeg;base64,${recording}`,
+      url: recordingUrl,
+    }
   } catch (err) {
     console.warn('Failed to get recording: ', err.stack)
   }
 
   return undefined
+}
+
+async function tryGetUnsplashImage(name) {
+  if (!unsplash) {
+    return undefined
+  }
+
+  try {
+    const response = await unsplash.search.getPhotos({
+      query: name,
+      page: 1,
+      perPage: 5,
+    })
+
+    const photos = response.response?.results
+    return photos && photos.length > 0 ? photos[0].urls.regular : undefined
+  } catch (err) {
+    return undefined
+  }
+}
+
+async function trySendSlackWebhookMessage(pairs) {
+  if (!slackWebhookUrl) {
+    return
+  }
+
+  const imageUrl = await tryGetUnsplashImage(pairs.comname)
+  const recordingUrl = getRecordingUrl(pairs.listenurl, pairs.date)
+  const confidence =
+    pairs.confidencepct || parseFloat(pairs.confidence).toFixed(2)
+
+  const res = await fetch(slackWebhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      /* eslint-disable camelcase */
+      blocks: [
+        imageUrl && {
+          type: 'image',
+          title: {
+            type: 'plain_text',
+            text: pairs.comname,
+            emoji: false,
+          },
+          image_url: imageUrl,
+          alt_text: pairs.comname,
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `A *${pairs.comname}* (_${pairs.sciname}_) was just detected with a confidence of *${confidence}%*.`,
+          },
+          accessory: recordingUrl && {
+            type: 'button',
+            url: recordingUrl,
+            accessibility_label: 'Listen to recording',
+            text: {
+              type: 'plain_text',
+              text: 'Listen',
+              emoji: false,
+            },
+          },
+        },
+      ].filter(Boolean),
+      /* eslint-enable camelcase */
+    }),
+  })
+
+  if (!res.ok || res.status >= 400) {
+    console.warn('Failed to send Slack webhook message: ', res.status)
+  }
+}
+
+function parseMessage(message) {
+  return message
+    .replace(/\s*\(first time today\)/, '')
+    .split(' --- ')
+    .reduce((acc, pair) => {
+      const [key, ...values] = pair.split('=')
+      acc[key] = values.join('=')
+      return acc
+    }, {})
 }
