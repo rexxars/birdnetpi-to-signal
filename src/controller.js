@@ -13,8 +13,8 @@ exports.notificationController = async (req, res) => {
   try {
     const data = validateData(req.body)
     const uri = `${signalApiUrl.replace(/\/+$/, '')}/v2/send`
-    await fetch({
-      url: new URL(uri),
+
+    await fetch(uri, {
       method: 'POST',
       body: await getPayload(data),
     })
@@ -116,7 +116,7 @@ async function getPayload(data) {
 async function tryGetRecordingAttachment(listenUrl, date) {
   try {
     const url = new URL(listenUrl)
-    const filename = url.searchParams.filename
+    const filename = url.searchParams.get('filename')
     const [folder] = filename.split(/-\d+-/)
     const recordingUrl = `${url.origin}/By_Date/${date}/${folder}/${filename}`
 
