@@ -90,22 +90,14 @@ async function getPayload(data) {
   }, {})
 
   if (pairs.listenurl) {
-    pairs.listenurl = pairs.listenurl.replace(/\/\+\?filename=/, '/?filename=')
-  }
+    const recording = await tryGetRecordingAttachment(
+      pairs.listenurl,
+      pairs.date,
+    )
 
-  const listenUrl = new URL(pairs.listenurl)
-  const filename = listenUrl.searchParams.filename
-  const [folder] = filename.split(/-\d+-/)
-  const recordingUrl = `${listenUrl.origin}/By_Date/${pairs.date}/${folder}/${filename}`
-
-  try {
-    const recording = await fetch(recordingUrl)
-      .then((res) => res.arrayBuffer())
-      .then((buffer) => Buffer.from(buffer).toString('base64'))
-
-    attachments.push(`data:audio/mpeg;base64,${recording}`)
-  } catch (err) {
-    console.warn(err)
+    if (recording) {
+      attachments.push(recording)
+    }
   }
 
   let message = `A ${pairs.comname} (${pairs.sciname}) was just detected with a confidence of ${data.confidencepct}%`
@@ -119,4 +111,23 @@ async function getPayload(data) {
     number: fromNumber,
     recipients,
   })
+}
+
+async function tryGetRecordingAttachment(listenUrl, date) {
+  try {
+    const url = new URL(listenUrl)
+    const filename = url.searchParams.filename
+    const [folder] = filename.split(/-\d+-/)
+    const recordingUrl = `${url.origin}/By_Date/${date}/${folder}/${filename}`
+
+    const recording = await fetch(recordingUrl)
+      .then((res) => res.arrayBuffer())
+      .then((buffer) => Buffer.from(buffer).toString('base64'))
+
+    return `data:audio/mpeg;base64,${recording}`
+  } catch (err) {
+    console.warn('Failed to get recording: ', err.stack)
+  }
+
+  return undefined
 }
