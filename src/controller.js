@@ -6,7 +6,7 @@ const {
   fromNumber,
   recipients,
   returnEarly,
-  includeRecording,
+  attachRecording,
 } = require('./config')
 
 class ValidationError extends Error {
@@ -109,13 +109,13 @@ async function getPayload(data) {
     return acc
   }, {})
 
+  let recordingUrl
   if (pairs.listenurl) {
-    const recording = await tryGetRecordingAttachment(
-      pairs.listenurl,
-      pairs.date,
-    )
+    const recording = await tryGetRecording(pairs.listenurl, pairs.date)
 
-    if (recording) {
+    if (recording && recording.type === 'embed') {
+      recordingUrl = recording.url
+    } else if (recording && recording.type === 'attach') {
       attachments.push(recording)
     }
   }
@@ -124,6 +124,10 @@ async function getPayload(data) {
     pairs.confidencepct || parseFloat(pairs.confidence).toFixed(2)
 
   let message = `A ${pairs.comname} (${pairs.sciname}) was just detected with a confidence of ${confidence}%`
+  if (recordingUrl) {
+    message = +'\n\nListen: ' + recordingUrl
+  }
+
   if (pairs.flickrimage) {
     message = +'\n\n' + pairs.flickrimage
   }
@@ -137,11 +141,7 @@ async function getPayload(data) {
   })
 }
 
-async function tryGetRecordingAttachment(listenUrl, date) {
-  if (!includeRecording) {
-    return undefined
-  }
-
+async function tryGetRecording(listenUrl, date) {
   try {
     const url = new URL(listenUrl)
     const filename = url.searchParams.get('filename')
@@ -152,12 +152,16 @@ async function tryGetRecordingAttachment(listenUrl, date) {
     const [folder] = filename.split(/-\d+-/)
     const recordingUrl = `${url.origin}/By_Date/${date}/${folder}/${filename}`
 
+    if (!attachRecording) {
+      return {type: 'embed', url: recordingUrl}
+    }
+
     console.info('Attempting fetch recording from ', recordingUrl)
     const recording = await fetch(recordingUrl)
       .then((res) => res.arrayBuffer())
       .then((buffer) => Buffer.from(buffer).toString('base64'))
 
-    return `data:audio/mpeg;base64,${recording}`
+    return {type: 'attach', data: `data:audio/mpeg;base64,${recording}`}
   } catch (err) {
     console.warn('Failed to get recording: ', err.stack)
   }

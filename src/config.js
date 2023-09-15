@@ -8,7 +8,7 @@ module.exports = {
   recipients: (process.env.RECIPIENTS || '').split(/,\s*/).filter(Boolean),
   httpPort: parseInt(process.env.HTTP_PORT || '3000', 10),
   returnEarly: parseBool(process.env.RETURN_EARLY),
-  includeRecording: parseBool(process.env.INCLUDE_RECORDING),
+  attachRecording: parseBool(process.env.ATTACH_RECORDING),
 }
 
 function parseBool(envVar) {
