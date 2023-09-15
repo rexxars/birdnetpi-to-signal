@@ -22,6 +22,7 @@ app.use((req, res, next) => {
   next()
 })
 
+app.get('/', (req, res) => res.type('text/plain').send('Please use POST'))
 app.post('/', bodyParser.json({limit: '1mb'}), notificationController)
 
 app.use((err, req, res, next) => {
