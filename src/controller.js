@@ -1,7 +1,13 @@
 // @ts-check
-/* eslint-disable camelcase */
+/* eslint-disable no-console */
 const {fetch} = require('undici')
-const {signalApiUrl, fromNumber, recipients} = require('./config')
+const {
+  signalApiUrl,
+  fromNumber,
+  recipients,
+  returnEarly,
+  includeRecording,
+} = require('./config')
 
 class ValidationError extends Error {
   constructor(message) {
@@ -15,11 +21,24 @@ exports.notificationController = async (req, res) => {
     const data = validateData(req.body)
     const uri = `${signalApiUrl.replace(/\/+$/, '')}/v2/send`
 
+    if (returnEarly) {
+      res.status(201).json({success: null})
+    }
+
+    const payload = await getPayload(data)
+    console.info(
+      'Sending message to Signal API (%s kB)',
+      Math.round(payload.length / 1024),
+    )
+
     await fetch(uri, {
       method: 'POST',
-      body: await getPayload(data),
+      body: payload,
     })
-    res.json({success: true})
+
+    if (!returnEarly) {
+      res.json({success: true})
+    }
   } catch (err) {
     const isValidationError = 'isValidationError' in err
     if (isValidationError) {
@@ -110,6 +129,7 @@ async function getPayload(data) {
   }
 
   return JSON.stringify({
+    // eslint-disable-next-line camelcase
     base64_attachments: attachments.length > 0 ? attachments : undefined,
     message,
     number: fromNumber,
@@ -118,12 +138,21 @@ async function getPayload(data) {
 }
 
 async function tryGetRecordingAttachment(listenUrl, date) {
+  if (!includeRecording) {
+    return undefined
+  }
+
   try {
     const url = new URL(listenUrl)
     const filename = url.searchParams.get('filename')
+    if (!filename) {
+      return undefined
+    }
+
     const [folder] = filename.split(/-\d+-/)
     const recordingUrl = `${url.origin}/By_Date/${date}/${folder}/${filename}`
 
+    console.info('Attempting fetch recording from ', recordingUrl)
     const recording = await fetch(recordingUrl)
       .then((res) => res.arrayBuffer())
       .then((buffer) => Buffer.from(buffer).toString('base64'))
