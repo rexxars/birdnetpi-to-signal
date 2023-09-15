@@ -1,0 +1,38 @@
+{
+  "name": "@rexxars/birdnetpi-to-signal",
+  "version": "1.0.0",
+  "description": "Prettifies notifications from birdnet-pi and sends them to Signal",
+  "main": "src/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "echo \"No test specified\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/rexxars/birdnetpi-to-signal.git"
+  },
+  "author": "Espen Hovlandsdal <espen@hovlandsdal.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rexxars/birdnetpi-to-signal/issues"
+  },
+  "homepage": "https://github.com/rexxars/birdnetpi-to-signal#readme",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "undici": "^5.24.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "eslint": "^8.48.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-config-sanity": "^6.0.0",
+    "prettier": "^3.0.3"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "bracketSpacing": false
+  }
+}
