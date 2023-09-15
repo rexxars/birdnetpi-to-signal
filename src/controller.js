@@ -13,10 +13,19 @@ exports.notificationController = async (req, res) => {
   try {
     const data = validateData(req.body)
     const uri = `${signalApiUrl.replace(/\/+$/, '')}/v2/send`
-    fetch({url: new URL(uri), method: 'POST', body: await getPayload(data)})
+    await fetch({
+      url: new URL(uri),
+      method: 'POST',
+      body: await getPayload(data),
+    })
     res.json({success: true})
   } catch (err) {
     const isValidationError = 'isValidationError' in err
+    if (isValidationError) {
+      console.warn('Validation error:', err.message)
+    } else {
+      console.error('Error:', err.stack)
+    }
     const code = isValidationError ? 400 : 500
     res.status(code).json({
       success: false,
