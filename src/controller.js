@@ -74,7 +74,7 @@ function validateData(data) {
 
 async function getPayload(data) {
   const attachments = []
-  if (data.attachment.length > 0) {
+  if (data.attachments.length > 0) {
     const img = data.attachments[0]
     attachments.push(
       img.base64.startsWith('data:')
