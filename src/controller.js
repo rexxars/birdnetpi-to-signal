@@ -136,7 +136,8 @@ async function getSignalPayload(data) {
   const confidence =
     pairs.confidencepct || parseFloat(pairs.confidence).toFixed(2)
 
-  let message = `A ${pairs.comname} (${pairs.sciname}) was just detected with a confidence of ${confidence}%`
+  const prefix = pairs.comname.toLowerCase().startsWith('a') ? 'An' : 'A'
+  let message = `${prefix} ${pairs.comname} (${pairs.sciname}) was just detected with a confidence of ${confidence}%`
   if (recordingUrl) {
     message = `${message}\n\nListen: ${recordingUrl}`
   }
@@ -226,6 +227,9 @@ async function trySendSlackWebhookMessage(pairs) {
   const confidence =
     pairs.confidencepct || parseFloat(pairs.confidence).toFixed(2)
 
+  const prefix = pairs.comname.toLowerCase().startsWith('a') ? 'An' : 'A'
+  const text = `${prefix} *${pairs.comname}* (_${pairs.sciname}_) was just detected with a confidence of *${confidence}%*.`
+
   const res = await fetch(slackWebhookUrl, {
     method: 'POST',
     headers: {
@@ -248,7 +252,7 @@ async function trySendSlackWebhookMessage(pairs) {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `A *${pairs.comname}* (_${pairs.sciname}_) was just detected with a confidence of *${confidence}%*.`,
+            text,
           },
           accessory: recordingUrl && {
             type: 'button',
